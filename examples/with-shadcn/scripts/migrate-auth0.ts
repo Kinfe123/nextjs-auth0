@@ -10,9 +10,9 @@ import { auth } from '@/lib/auth';
 const SUPPORTED_HASH_ALGORITHMS = ['bcrypt'];
 
 const auth0Client = new ManagementClient({
-    domain: AUTH0_DOMAIN,
-    clientId: AUTH0_CLIENT_ID,
-    clientSecret: AUTH0_SECRET,
+    domain: process.env.AUTH0_DOMAIN!,
+    clientId: process.env.AUTH0_CLIENT_ID!,
+    clientSecret: process.env.AUTH0_SECRET!,
 });
 
 // export const auth = betterAuth({
@@ -157,28 +157,6 @@ async function migrateMFAFactors(auth0User: any, userId: string | undefined, ctx
                     }
                 });
             }
-
-            if (factor.phone && factor.phone.value) {
-                await ctx.adapter.create({
-                    model: "phoneNumber",
-                    data: {
-                        userId: userId,
-                        phoneNumber: factor.phone.value,
-                        verified: true
-                    }
-                });
-            }
-
-            if (factor.email && factor.email.value) {
-                await ctx.adapter.create({
-                    model: "emailMFA",
-                    data: {
-                        userId: userId,
-                        email: factor.email.value,
-                        verified: true
-                    }
-                });
-            }
         } catch (error) {
             console.error(`Failed to migrate MFA factor for user ${userId}:`, error);
         }
@@ -212,7 +190,7 @@ async function migrateOAuthAccounts(auth0User: any, userId: string | undefined, 
                         userId: userId,
                         type: "oauth",
                         provider: providerId,
-                        providerAccountId: identity.user_id,
+                        accountId: identity.user_id,
                         // Store OAuth-specific data
                         access_token: identity.access_token,
                         token_type: identity.token_type,
@@ -242,7 +220,13 @@ async function migrateOAuthAccounts(auth0User: any, userId: string | undefined, 
                             userId: userId,
                             type: "oauth",
                             provider: providerId,
-                            providerAccountId: identity.user_id,
+                            accountId: identity.user_id,
+                            access_token: identity.access_token,
+                            token_type: identity.token_type,
+                            refresh_token: identity.refresh_token,
+                            expires_at: identity.expires_in ? Math.floor(Date.now() / 1000) + identity.expires_in : undefined,
+                            scope: identity.scope,
+                            id_token: identity.id_token,
                             createdAt: safeDateConversion(auth0User.created_at),
                             updatedAt: safeDateConversion(auth0User.updated_at)
                         },
@@ -265,22 +249,23 @@ async function migrateFromAuth0() {
         const isTwoFactorEnabled = ctx.options?.plugins?.find(plugin => plugin.id === "two-factor");
         const isUsernameEnabled = ctx.options?.plugins?.find(plugin => plugin.id === "username");
 
-        // Get all users from Auth0
-        let auth0Users: any[] = [];
-        let pageNumber = 0;
         const perPage = 100;
-        
+        const auth0Users: any[] = [];
+        let pageNumber = 0;
+
         while (true) {
             try {
                 const params = {
-                    page: pageNumber,
                     per_page: perPage,
-                    include_totals: true
+                    page: pageNumber,
+                    include_totals: true,
                 };
                 const response = (await auth0Client.users.getAll(params)).data as any;
-                const users = response.users;
+                const users = response.users || [];
+                
                 if (users.length === 0) break;
-                auth0Users = auth0Users.concat(users);
+                
+                auth0Users.push(...users);
                 pageNumber++;
                 
                 if (users.length < perPage) break;
@@ -294,62 +279,77 @@ async function migrateFromAuth0() {
 
         for (const auth0User of auth0Users) {
             try {
-                const passwordHash = await migratePassword(auth0User);
+                // Determine if this is a password-based or OAuth user
+                const isOAuthUser = auth0User.identities?.some((identity: any) => identity.provider !== 'auth0');
+                console.log('auth0User', auth0User)
+                // Base user data that's common for both types
+                const baseUserData = {
+                    email: auth0User.email,
+                    emailVerified: auth0User.email_verified || false,
+                    name: auth0User.name || auth0User.nickname,
+                    image: auth0User.picture,
+                    createdAt: safeDateConversion(auth0User.created_at),
+                    updatedAt: safeDateConversion(auth0User.updated_at),
+                    // lastLoginAt: safeDateConversion(auth0User.last_login),
+                    // lastLoginIp: auth0User.last_ip,
+                    // loginCount: auth0User.logins_count || 0,
+                };
 
-                const createdUser = await ctx.adapter.create<{
-                    id: string;
-                }>({
+                console.log('baseUserData', baseUserData , isOAuthUser)
+                const createdUser = await ctx.adapter.create({
                     model: "user",
                     data: {
-                        id: auth0User.user_id,
-                        email: auth0User.email,
-                        emailVerified: auth0User.email_verified || false,
-                        name: auth0User.name || `${auth0User.given_name || ''} ${auth0User.family_name || ''}`.trim(),
-                        image: auth0User.picture,
-                        createdAt: safeDateConversion(auth0User.created_at),
-                        updatedAt: safeDateConversion(auth0User.updated_at),
-                        
-                        // Password hash
-                        ...(passwordHash ? {
-                            password: passwordHash
-                        } : {}),
-                        
-                        // Admin plugin data
-                        ...(isAdminEnabled ? {
-                            banned: auth0User.blocked || false,
-                            role: mapAuth0RoleToBetterAuthRole(auth0User.roles || []),
-                        } : {}),
-                        
-                        // Username plugin data
-                        ...(isUsernameEnabled ? {
-                            username: auth0User.username || auth0User.nickname,
-                        } : {}),
-
-                        // Additional fields from schema
-                        given_name: auth0User.given_name,
-                        family_name: auth0User.family_name,
-                        nickname: auth0User.nickname,
+                        ...baseUserData,
+                        ...(isOAuthUser ? {} : {
+                            username: auth0User.nickname,
+                            password: await migratePassword(auth0User),
+                        }),
                     },
-                    forceAllowId: true
-                }).catch(async e => {
-                    return await ctx.adapter.findOne<{
-                        id: string;
-                    }>({
-                        model: "user",
-                        where: [{
-                            field: "id",
-                            value: auth0User.user_id || ""
-                        }]
-                    });
                 });
 
-                await migrateOAuthAccounts(auth0User, createdUser?.id, ctx);
-
-                if (isTwoFactorEnabled) {
-                    await migrateMFAFactors(auth0User, createdUser?.id, ctx);
+                if (!createdUser?.id) {
+                    throw new Error('Failed to create user');
                 }
 
-                console.log(`Successfully migrated user ${auth0User.email}`);
+                // For OAuth users, migrate their OAuth accounts
+                if (isOAuthUser) {
+                    for (const identity of auth0User.identities) {
+                        if (identity.provider !== 'auth0') {
+                            const providerId = identity.provider.split("-")[0] || identity.provider;
+                            console.log('providerId', providerId)
+                            await ctx.adapter.create({
+                                model: "account",
+                                data: {
+                                    userId: createdUser.id,
+                                    providerId: providerId,
+                                    accountId: identity.user_id,
+                                    accessToken: identity.access_token,
+                                    refreshToken: identity.refresh_token,
+                                    expiresAt: identity.expires_in ? Math.floor(Date.now() / 1000) + identity.expires_in : undefined,
+                                    scope: identity.scope,
+                                    idToken: identity.id_token,
+                                    createdAt: safeDateConversion(auth0User.created_at),
+                                    updatedAt: safeDateConversion(auth0User.updated_at)
+                                }
+                            }).catch(async (error: Error) => {
+                                console.error(`Failed to create OAuth account for user ${createdUser.id} with provider ${providerId}:`, error);
+                                // Fallback to minimal account data if full data fails
+                                await ctx.adapter.create({
+                                    model: "account",
+                                    data: {
+                                        userId: createdUser.id,
+                                        providerId: providerId,
+                                        accountId: identity.user_id,
+                                        createdAt: safeDateConversion(auth0User.created_at),
+                                        updatedAt: safeDateConversion(auth0User.updated_at)
+                                    }
+                                });
+                            });
+                        }
+                    }
+                }
+
+                console.log(`Successfully migrated user: ${auth0User.email}`);
             } catch (error) {
                 console.error(`Failed to migrate user ${auth0User.email}:`, error);
             }
