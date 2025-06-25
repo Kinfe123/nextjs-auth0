@@ -1,9 +1,5 @@
 import { ManagementClient } from 'auth0';
-import { betterAuth } from "better-auth";
-import { Pool } from "pg";
 import { generateRandomString, symmetricEncrypt } from "better-auth/crypto";
-import { admin, twoFactor, username } from "better-auth/plugins";
-import bcrypt from 'bcryptjs';
 import { auth } from '@/lib/auth';
 
 
@@ -20,7 +16,7 @@ const testMockAuth0UserWithPassword = [
       "email_verified": false,
       "given_name": "Hello",
       "family_name": "World",
-      "name": "helloworld@gmail.com",
+      "name": "Hello world",
       "nickname": "helloworld",
       "user_id": "auth0|685b366d6d6615b40e31d56e",
       "created_at": "2025-06-24T23:36:13.875Z",
@@ -128,14 +124,12 @@ async function generateBackupCodes(secret: string) {
     return encCodes;
 }
 
-// Function to map Auth0 roles to Better Auth roles
 function mapAuth0RoleToBetterAuthRole(auth0Roles: string[]): string {
     if (auth0Roles.includes('admin')) return 'admin';
     if (auth0Roles.includes('moderator')) return 'moderator';
     return 'user';
 }
-
-// Helper function to handle password migration
+// helper function to migrate password from auth0 to better auth for custom hashes and algs
 async function migratePassword(auth0User: any) {
     if (auth0User.password_hash) {
         if (auth0User.password_hash.startsWith('$2a$') || auth0User.password_hash.startsWith('$2b$')) {
@@ -221,12 +215,12 @@ async function migrateOAuthAccounts(auth0User: any, userId: string | undefined, 
     for (const identity of auth0User.identities) {
         try {
             const providerId = identity.provider === 'auth0' ? "credential" : identity.provider.split("-")[0];
-
                 await ctx.adapter.create({
                     model: "account",
                     data: {
                         id: `${auth0User.user_id}|${identity.provider}|${identity.user_id}`,
                         userId: userId,
+                        password: await migratePassword(auth0User),
                         providerId: providerId || identity.provider,
                         accountId: identity.user_id,
                         accessToken: identity.access_token,
@@ -247,6 +241,7 @@ async function migrateOAuthAccounts(auth0User: any, userId: string | undefined, 
                         data: {
                             id: `${auth0User.user_id}|${identity.provider}|${identity.user_id}`,
                             userId: userId,
+                            password: migratePassword(auth0User),
                             providerId: providerId,
                             accountId: identity.user_id,
                             accessToken: identity.access_token,
@@ -280,7 +275,7 @@ async function migrateFromAuth0() {
         const auth0Users: any[] = testMockAuth0UserWithPassword;
         let pageNumber = 0;
 
-        while (false) {
+        while (true) {
             try {
                 const params = {
                     per_page: perPage,
@@ -336,9 +331,6 @@ async function migrateFromAuth0() {
                     model: "user",
                     data: {
                         ...baseUserData,
-                        ...(isOAuthUser ? {} : {
-                            password: await migratePassword(auth0User),
-                        }),
                     },
                 });
 
