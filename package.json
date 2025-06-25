@@ -1,0 +1,115 @@
+{
+  "name": "@auth0/nextjs-auth0",
+  "version": "4.7.0",
+  "description": "Auth0 Next.js SDK",
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "build:watch": "tsc -w",
+    "test:unit": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "test:e2e": "playwright test",
+    "prepack": "pnpm run build",
+    "install:examples": "pnpm install --filter ./examples/with-next-intl --shamefully-hoist && pnpm install --filter ./examples/with-shadcn --shamefully-hoist",
+    "docs": "typedoc",
+    "lint": "tsc --noEmit && eslint --fix ./src"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/auth0/nextjs-auth0.git"
+  },
+  "keywords": [
+    "auth0",
+    "next.js",
+    "react",
+    "oidc",
+    "authentication",
+    "vercel"
+  ],
+  "author": "Auth0 (https://auth0.com)",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/auth0/nextjs-auth0/issues"
+  },
+  "homepage": "https://github.com/auth0/nextjs-auth0#readme",
+  "devDependencies": {
+    "msw": "^2.7.5",
+    "@eslint/js": "^9.20.0",
+    "@ianvs/prettier-plugin-sort-imports": "^4.3.1",
+    "@playwright/test": "^1.48.2",
+    "@stylistic/eslint-plugin-ts": "^3.1.0",
+    "@testing-library/react": "^16.3.0",
+    "@types/node": "^22.8.6",
+    "@types/react": "*",
+    "@types/react-dom": "*",
+    "@vitest/coverage-v8": "2.1.9",
+    "eslint": "^9.20.0",
+    "eslint-config-prettier": "^10.0.1",
+    "eslint-plugin-prettier": "^5.2.3",
+    "eslint-plugin-react": "^7.37.4",
+    "globals": "^15.14.0",
+    "jsdom": "^26.1.0",
+    "next": "15.2.3",
+    "prettier": "^3.3.3",
+    "typedoc": "^0.28.4",
+    "typescript": "^5.6.3",
+    "typescript-eslint": "^8.23.0",
+    "vite": "^5.4.11",
+    "vitest": "^2.1.4"
+  },
+  "peerDependencies": {
+    "next": "^14.2.25 || ^15.2.3",
+    "react": "^18.0.0 || ^19.0.0 || ^19.0.0-0",
+    "react-dom": "^18.0.0 || ^19.0.0 || ^19.0.0-0"
+  },
+  "exports": {
+    ".": {
+      "default": "./dist/client/index.js"
+    },
+    "./server": {
+      "default": "./dist/server/index.js"
+    },
+    "./errors": {
+      "default": "./dist/errors/index.js"
+    },
+    "./types": {
+      "default": "./dist/types/index.d.ts"
+    },
+    "./testing": {
+      "default": "./dist/testing/index.js"
+    }
+  },
+  "dependencies": {
+    "@edge-runtime/cookies": "^5.0.1",
+    "@panva/hkdf": "^1.2.1",
+    "jose": "^5.9.6",
+    "oauth4webapi": "^3.1.2",
+    "swr": "^2.2.5"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "typesVersions": {
+    "*": {
+      "testing": [
+        "./dist/testing/index.d.ts"
+      ],
+      "types": [
+        "./dist/types/index.d.ts"
+      ],
+      "server": [
+        "./dist/server/index.d.ts"
+      ],
+      "errors": [
+        "./dist/errors/index.d.ts"
+      ],
+      "*": [
+        "./dist/client/*",
+        "./dist/client/index.d.ts"
+      ]
+    }
+  },
+  "files": [
+    "dist"
+  ]
+}
