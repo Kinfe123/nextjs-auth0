@@ -171,17 +171,7 @@ async function migrateOAuthAccounts(auth0User: any, userId: string | undefined, 
     for (const identity of auth0User.identities) {
         try {
             if (identity.provider !== 'auth0') {
-                const providerMapping: { [key: string]: string } = {
-                    'google-oauth2': 'google',
-                    'github': 'github',
-                    'facebook': 'facebook',
-                    'twitter': 'twitter',
-                    'microsoft': 'azure-ad',
-                    'linkedin': 'linkedin',
-                    'apple': 'apple'
-                };
-
-                const providerId = providerMapping[identity.provider] || identity.provider;
+                const providerId = identity.provider.split("-")[0] || identity.provider;
 
                 await ctx.adapter.create({
                     model: "account",
@@ -316,7 +306,6 @@ async function migrateFromAuth0() {
                     for (const identity of auth0User.identities) {
                         if (identity.provider !== 'auth0') {
                             const providerId = identity.provider.split("-")[0] || identity.provider;
-                            console.log('providerId', providerId)
                             await ctx.adapter.create({
                                 model: "account",
                                 data: {
