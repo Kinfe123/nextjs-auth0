@@ -226,7 +226,8 @@ async function migrateOAuthAccounts(auth0User: any, userId: string | undefined, 
                         accessToken: identity.access_token,
                         tokenType: identity.token_type,
                         refreshToken: identity.refresh_token,
-                        expiresAt: identity.expires_in ? Math.floor(Date.now() / 1000) + identity.expires_in : undefined,
+                        accessTokenExpiresAt: identity.expires_in ? new Date(Date.now() + identity.expires_in * 1000) : undefined,
+                        refreshTokenExpiresAt: identity.refresh_token_expires_in ? new Date(Date.now() + identity.refresh_token_expires_in * 1000) : undefined,
                         scope: identity.scope,
                         idToken: identity.id_token,
                         createdAt: safeDateConversion(auth0User.created_at),
@@ -247,7 +248,8 @@ async function migrateOAuthAccounts(auth0User: any, userId: string | undefined, 
                             accessToken: identity.access_token,
                             tokenType: identity.token_type,
                             refreshToken: identity.refresh_token,
-                            expiresAt: identity.expires_in ? Math.floor(Date.now() / 1000) + identity.expires_in : undefined,
+                            accessTokenExpiresAt: identity.expires_in ? new Date(Date.now() + identity.expires_in * 1000) : undefined,
+                            refreshTokenExpiresAt: identity.refresh_token_expires_in ? new Date(Date.now() + identity.refresh_token_expires_in * 1000) : undefined,
                             scope: identity.scope,
                             idToken: identity.id_token,
                             createdAt: safeDateConversion(auth0User.created_at),
@@ -268,11 +270,10 @@ async function migrateFromAuth0() {
     try {
         const ctx = await auth.$context;
         const isAdminEnabled = ctx.options?.plugins?.find(plugin => plugin.id === "admin");
-        const isTwoFactorEnabled = ctx.options?.plugins?.find(plugin => plugin.id === "two-factor");
         const isUsernameEnabled = ctx.options?.plugins?.find(plugin => plugin.id === "username");
 
         const perPage = 100;
-        const auth0Users: any[] = testMockAuth0UserWithPassword;
+        const auth0Users: any[] = [];
         let pageNumber = 0;
 
         while (true) {
@@ -284,7 +285,6 @@ async function migrateFromAuth0() {
                 };
                 const response = (await auth0Client.users.getAll(params)).data as any;
                 const users = response.users || [];
-
                 if (users.length === 0) break;
 
                 auth0Users.push(...users);
@@ -296,6 +296,7 @@ async function migrateFromAuth0() {
                 break;
             }
         }
+        
 
         console.log(`Found ${auth0Users.length} users to migrate`);
         console.log('auth0Users', auth0Users)       
