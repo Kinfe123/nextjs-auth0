@@ -12,7 +12,7 @@ export default function LoginPage() {
         const password = formData.get("password") as string;
         const { data, error } = await authClient.signIn.email({
             email: "kinfishtech@gmail.com",
-            password: "Test191919?",
+            password: "nullpassword",
         });
         console.log(data, error)
     }
@@ -22,7 +22,7 @@ export default function LoginPage() {
             <Button onClick={() => {
                 authClient.signIn.email({
                     email: "kinfishtech@gmail.com",
-                    password: "Test191919?",
+                    password: "nullpassword",
                 })
             }}>Sign in with email</Button>
             <div className="w-full max-w-md space-y-8">
