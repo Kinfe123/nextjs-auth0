@@ -13,53 +13,53 @@ const auth0Client = new ManagementClient({
 });
 const testMockAuth0UserWithPassword = [
     {
-      "email": "helloworld@gmail.com",
-      "email_verified": false,
-      "given_name": "Hello",
-      "family_name": "World",
-      "name": "Hello world",
-      "nickname": "helloworld",
-      "user_id": "auth0|685b366d6d6615b40e31d56e",
-      "created_at": "2025-06-24T23:36:13.875Z",
-      "updated_at": "2025-06-24T23:36:13.876Z",
-      "picture": "https://s.gravatar.com/avatar/d015d44f52731c8e88d8637e445e72de?s=480&r=pg&d=https%3A%2F%2Fcdn.auth0.com%2Favatars%2Fhe.png",
-      "identities": [
-        {
-          "connection": "Username-Password-Authentication",
-          "user_id": "685b366d6d6615b40e31d56e",
-          "provider": "auth0",
-          "isSocial": false
-        }
-      ],
-      "logins_count": 1,
-      "last_login": "2025-06-24T23:36:13.873Z",
-      "last_ip": "2600:1700:7e40:1ad0:e852:fc49:403b:bf4a",
-      "password_hash": "$2b$10$w4kfaZVjrcQ6ZOMiG.M8JeNvnVQkPKZV03pbDUHbxy9Ug0h/McDXi"
+        "email": "helloworld@gmail.com",
+        "email_verified": false,
+        "given_name": "Hello",
+        "family_name": "World",
+        "name": "Hello world",
+        "nickname": "helloworld",
+        "user_id": "auth0|685b366d6d6615b40e31d56e",
+        "created_at": "2025-06-24T23:36:13.875Z",
+        "updated_at": "2025-06-24T23:36:13.876Z",
+        "picture": "https://s.gravatar.com/avatar/d015d44f52731c8e88d8637e445e72de?s=480&r=pg&d=https%3A%2F%2Fcdn.auth0.com%2Favatars%2Fhe.png",
+        "identities": [
+            {
+                "connection": "Username-Password-Authentication",
+                "user_id": "685b366d6d6615b40e31d56e",
+                "provider": "auth0",
+                "isSocial": false
+            }
+        ],
+        "logins_count": 1,
+        "last_login": "2025-06-24T23:36:13.873Z",
+        "last_ip": "2600:1700:7e40:1ad0:e852:fc49:403b:bf4a",
+        "password_hash": "$2b$10$w4kfaZVjrcQ6ZOMiG.M8JeNvnVQkPKZV03pbDUHbxy9Ug0h/McDXi"
     },
     {
-      "email": "kinfetare83@gmail.com",
-      "email_verified": true,
-      "given_name": "KINFISH",
-      "name": "KINFISH",
-      "nickname": "kinfetare83",
-      "user_id": "google-oauth2|101888716435088337878",
-      "created_at": "2025-06-24T21:59:12.587Z",
-      "updated_at": "2025-06-24T21:59:12.587Z",
-      "picture": "https://lh3.googleusercontent.com/a/ACg8ocIKLU_615EKRyowYc0vBYAaapzOkNW_tyScs52yxQx07WyPDgHr=s96-c",
-      "identities": [
-        {
-          "connection": "google-oauth2",
-          "user_id": "101888716435088337878",
-          "provider": "google-oauth2",
-          "isSocial": true
-        }
-      ],
-      "logins_count": 1,
-      "last_login": "2025-06-24T21:59:12.584Z",
-      "last_ip": "2600:1700:7e40:1ad0:e852:fc49:403b:bf4a"
+        "email": "kinfetare83@gmail.com",
+        "email_verified": true,
+        "given_name": "KINFISH",
+        "name": "KINFISH",
+        "nickname": "kinfetare83",
+        "user_id": "google-oauth2|101888716435088337878",
+        "created_at": "2025-06-24T21:59:12.587Z",
+        "updated_at": "2025-06-24T21:59:12.587Z",
+        "picture": "https://lh3.googleusercontent.com/a/ACg8ocIKLU_615EKRyowYc0vBYAaapzOkNW_tyScs52yxQx07WyPDgHr=s96-c",
+        "identities": [
+            {
+                "connection": "google-oauth2",
+                "user_id": "101888716435088337878",
+                "provider": "google-oauth2",
+                "isSocial": true
+            }
+        ],
+        "logins_count": 1,
+        "last_login": "2025-06-24T21:59:12.584Z",
+        "last_ip": "2600:1700:7e40:1ad0:e852:fc49:403b:bf4a"
     }
-  ]
-  
+]
+
 
 
 // export const auth = betterAuth({
@@ -125,10 +125,9 @@ async function generateBackupCodes(secret: string) {
     return encCodes;
 }
 
-function mapAuth0RoleToBetterAuthRole(auth0Roles: string[]): string {
-    if (auth0Roles.includes('admin')) return 'admin';
-    if (auth0Roles.includes('moderator')) return 'moderator';
-    return 'user';
+function mapAuth0RoleToBetterAuthRole(auth0Roles: string[]) {
+    if (typeof auth0Roles === 'string') return auth0Roles;
+    if (Array.isArray(auth0Roles)) return auth0Roles.join(',');
 }
 // helper function to migrate password from auth0 to better auth for custom hashes and algs
 async function migratePassword(auth0User: any) {
@@ -216,56 +215,110 @@ async function migrateOAuthAccounts(auth0User: any, userId: string | undefined, 
     for (const identity of auth0User.identities) {
         try {
             const providerId = identity.provider === 'auth0' ? "credential" : identity.provider.split("-")[0];
-                await ctx.adapter.create({
+            await ctx.adapter.create({
+                model: "account",
+                data: {
+                    id: `${auth0User.user_id}|${identity.provider}|${identity.user_id}`,
+                    userId: userId,
+                    password: await migratePassword(auth0User),
+                    providerId: providerId || identity.provider,
+                    accountId: identity.user_id,
+                    accessToken: identity.access_token,
+                    tokenType: identity.token_type,
+                    refreshToken: identity.refresh_token,
+                    accessTokenExpiresAt: identity.expires_in ? new Date(Date.now() + identity.expires_in * 1000) : undefined,
+                    // if you are enterprise user, you can get the refresh tokens or all the tokensets - auth0Client.users.getAllTokensets 
+                    refreshTokenExpiresAt: identity.refresh_token_expires_in ? new Date(Date.now() + identity.refresh_token_expires_in * 1000) : undefined,
+
+                    scope: identity.scope,
+                    idToken: identity.id_token,
+                    createdAt: safeDateConversion(auth0User.created_at),
+                    updatedAt: safeDateConversion(auth0User.updated_at)
+                },
+                forceAllowId: true
+            }).catch((error: Error) => {
+                console.error(`Failed to create OAuth account for user ${userId} with provider ${providerId}:`, error);
+                return ctx.adapter.create({
+                    // Try creating without optional fields if the first attempt failed
                     model: "account",
                     data: {
                         id: `${auth0User.user_id}|${identity.provider}|${identity.user_id}`,
                         userId: userId,
-                        password: await migratePassword(auth0User),
-                        providerId: providerId || identity.provider,
+                        password: migratePassword(auth0User),
+                        providerId: providerId,
                         accountId: identity.user_id,
                         accessToken: identity.access_token,
                         tokenType: identity.token_type,
                         refreshToken: identity.refresh_token,
                         accessTokenExpiresAt: identity.expires_in ? new Date(Date.now() + identity.expires_in * 1000) : undefined,
-                        // if you are enterprise user, you can get the refresh tokens or all the tokensets - auth0Client.users.getAllTokensets 
                         refreshTokenExpiresAt: identity.refresh_token_expires_in ? new Date(Date.now() + identity.refresh_token_expires_in * 1000) : undefined,
-                        
                         scope: identity.scope,
                         idToken: identity.id_token,
                         createdAt: safeDateConversion(auth0User.created_at),
                         updatedAt: safeDateConversion(auth0User.updated_at)
                     },
                     forceAllowId: true
-                }).catch((error: Error) => {
-                    console.error(`Failed to create OAuth account for user ${userId} with provider ${providerId}:`, error);
-                    return ctx.adapter.create({
-                        // Try creating without optional fields if the first attempt failed
-                        model: "account",
-                        data: {
-                            id: `${auth0User.user_id}|${identity.provider}|${identity.user_id}`,
-                            userId: userId,
-                            password: migratePassword(auth0User),
-                            providerId: providerId,
-                            accountId: identity.user_id,
-                            accessToken: identity.access_token,
-                            tokenType: identity.token_type,
-                            refreshToken: identity.refresh_token,
-                            accessTokenExpiresAt: identity.expires_in ? new Date(Date.now() + identity.expires_in * 1000) : undefined,
-                            refreshTokenExpiresAt: identity.refresh_token_expires_in ? new Date(Date.now() + identity.refresh_token_expires_in * 1000) : undefined,
-                            scope: identity.scope,
-                            idToken: identity.id_token,
-                            createdAt: safeDateConversion(auth0User.created_at),
-                            updatedAt: safeDateConversion(auth0User.updated_at)
-                        },
-                        forceAllowId: true
-                    });
                 });
+            });
 
-                console.log(`Successfully migrated OAuth account for user ${userId} with provider ${providerId}`);
+            console.log(`Successfully migrated OAuth account for user ${userId} with provider ${providerId}`);
         } catch (error) {
             console.error(`Failed to migrate OAuth account for user ${userId}:`, error);
         }
+    }
+}
+
+async function migrateOrganizations(ctx: any) {
+    try {
+        const organizations = await auth0Client.organizations.getAll();
+        for (const org of organizations.data || []) {
+            try {
+                await ctx.adapter.create({
+                    model: "organization",
+                    data: {
+                        id: org.id,
+                        name: org.display_name || org.id,
+                        slug: (org.display_name || org.id).toLowerCase().replace(/[^a-z0-9]/g, '-'),
+                        logo: org.branding?.logo_url,
+                        metadata: JSON.stringify(org.metadata || {}),
+                        createdAt: safeDateConversion(org.created_at),
+                    },
+                    forceAllowId: true
+                });
+                const members = await auth0Client.organizations.getMembers({ id: org.id });
+                for (const member of members.data || []) {
+                    try {
+                        const userRoles = await auth0Client.organizations.getMemberRoles({
+                            id: org.id,
+                            user_id: member.user_id
+                        });
+                        const role = mapAuth0RoleToBetterAuthRole(userRoles.data?.map(r => r.name) || []);
+                        await ctx.adapter.create({
+                            model: "member",
+                            data: {
+                                id: `${org.id}|${member.user_id}`,
+                                organizationId: org.id,
+                                userId: member.user_id,
+                                role: role,
+                                createdAt: new Date()
+                            },
+                            forceAllowId: true
+                        });
+
+                        console.log(`Successfully migrated member ${member.user_id} for organization ${org.display_name || org.id}`);
+                    } catch (error) {
+                        console.error(`Failed to migrate member ${member.user_id} for organization ${org.display_name || org.id}:`, error);
+                    }
+                }
+
+                console.log(`Successfully migrated organization: ${org.display_name || org.id}`);
+            } catch (error) {
+                console.error(`Failed to migrate organization ${org.display_name || org.id}:`, error);
+            }
+        }
+        console.log('Organization migration completed');
+    } catch (error) {
+        console.error('Failed to migrate organizations:', error);
     }
 }
 
@@ -274,7 +327,7 @@ async function migrateFromAuth0() {
         const ctx = await auth.$context;
         const isAdminEnabled = ctx.options?.plugins?.find(plugin => plugin.id === "admin");
         const isUsernameEnabled = ctx.options?.plugins?.find(plugin => plugin.id === "username");
-
+        const isOrganizationEnabled = ctx.options?.plugins?.find(plugin => plugin.id === "organization");
         const perPage = 100;
         const auth0Users: any[] = [];
         let pageNumber = 0;
@@ -289,7 +342,6 @@ async function migrateFromAuth0() {
                 const response = (await auth0Client.users.getAll(params)).data as any;
                 const users = response.users || [];
                 if (users.length === 0) break;
-
                 auth0Users.push(...users);
                 pageNumber++;
 
@@ -299,17 +351,17 @@ async function migrateFromAuth0() {
                 break;
             }
         }
-        
+
 
         console.log(`Found ${auth0Users.length} users to migrate`);
-        console.log('auth0Users', auth0Users)       
+
         for (const auth0User of auth0Users) {
             try {
                 // Determine if this is a password-based or OAuth user
                 const isOAuthUser = auth0User.identities?.some((identity: any) => identity.provider !== 'auth0');
-                console.log('auth0User', auth0User)
                 // Base user data that's common for both types
                 const baseUserData = {
+                    id: auth0User.user_id,
                     email: auth0User.email,
                     emailVerified: auth0User.email_verified || false,
                     name: auth0User.name || auth0User.nickname,
@@ -321,13 +373,10 @@ async function migrateFromAuth0() {
                         role: mapAuth0RoleToBetterAuthRole(auth0User.roles || []),
                     } : {}),
 
-                    // Username plugin data
                     ...(isUsernameEnabled ? {
                         username: auth0User.username || auth0User.nickname,
                     } : {}),
-                    // lastLoginAt: safeDateConversion(auth0User.last_login),
-                    // lastLoginIp: auth0User.last_ip,
-                    // loginCount: auth0User.logins_count || 0,
+
                 };
 
                 const createdUser = await ctx.adapter.create({
@@ -335,20 +384,24 @@ async function migrateFromAuth0() {
                     data: {
                         ...baseUserData,
                     },
+                    forceAllowId: true
                 });
 
                 if (!createdUser?.id) {
                     throw new Error('Failed to create user');
                 }
 
+
                 await migrateOAuthAccounts(auth0User, createdUser.id, ctx)
-                // await migrateMFAFactors(auth0User, createdUser.id, ctx)
                 console.log(`Successfully migrated user: ${auth0User.email}`);
             } catch (error) {
                 console.error(`Failed to migrate user ${auth0User.email}:`, error);
             }
         }
-
+        if (isOrganizationEnabled) {
+            await migrateOrganizations(ctx);
+        }
+        // the reset of migration will be here.
         console.log('Migration completed successfully');
     } catch (error) {
         console.error('Migration failed:', error);

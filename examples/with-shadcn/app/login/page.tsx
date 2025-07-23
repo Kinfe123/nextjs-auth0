@@ -11,8 +11,8 @@ export default function LoginPage() {
         const email = formData.get("email") as string;
         const password = formData.get("password") as string;
         const { data, error } = await authClient.signIn.email({
-            email,
-            password,
+            email: "kinfishtech@gmail.com",
+            password: "Test191919?",
         });
         console.log(data, error)
     }
@@ -21,8 +21,8 @@ export default function LoginPage() {
         <div className="flex min-h-screen items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
             <Button onClick={() => {
                 authClient.signIn.email({
-                    email: "helloworld@gmail.com",
-                    password: "helloworld",
+                    email: "kinfishtech@gmail.com",
+                    password: "Test191919?",
                 })
             }}>Sign in with email</Button>
             <div className="w-full max-w-md space-y-8">
