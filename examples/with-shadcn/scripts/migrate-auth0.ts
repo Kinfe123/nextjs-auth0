@@ -1,6 +1,7 @@
 import { ManagementClient } from 'auth0';
 import { generateRandomString, symmetricEncrypt } from "better-auth/crypto";
 import { auth } from '@/lib/auth';
+import { authClient } from '@/lib/auth-client';
 
 
 const SUPPORTED_HASH_ALGORITHMS = ['bcrypt'];
@@ -227,7 +228,9 @@ async function migrateOAuthAccounts(auth0User: any, userId: string | undefined, 
                         tokenType: identity.token_type,
                         refreshToken: identity.refresh_token,
                         accessTokenExpiresAt: identity.expires_in ? new Date(Date.now() + identity.expires_in * 1000) : undefined,
+                        // if you are enterprise user, you can get the refresh tokens or all the tokensets - auth0Client.users.getAllTokensets 
                         refreshTokenExpiresAt: identity.refresh_token_expires_in ? new Date(Date.now() + identity.refresh_token_expires_in * 1000) : undefined,
+                        
                         scope: identity.scope,
                         idToken: identity.id_token,
                         createdAt: safeDateConversion(auth0User.created_at),
@@ -327,7 +330,6 @@ async function migrateFromAuth0() {
                     // loginCount: auth0User.logins_count || 0,
                 };
 
-                console.log('baseUserData', baseUserData, isOAuthUser)
                 const createdUser = await ctx.adapter.create({
                     model: "user",
                     data: {
